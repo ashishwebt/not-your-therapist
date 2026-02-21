@@ -1,0 +1,39 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "FastAPI",
+      "type": "debugpy",
+      "request": "launch",
+      "python": "${command:python.interpreterPath}",
+      "module": "uv",
+      "args": [
+        "run",
+        "uvicorn",
+        "main:app",
+        "--port",
+        "8000",
+        "--reload"
+      ],
+      "console": "internalConsole",
+      "justMyCode": false,
+      "cwd": "${workspaceFolder}/backend"
+    },
+    {
+      "name": "React",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:5173",
+      "webRoot": "${workspaceFolder}/not-your-therapist/src",
+      "sourceMaps": true,
+      "preLaunchTask": "npm: dev (React)"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "fullstack",
+      "configurations": ["React", "FastAPI"],
+      "stopAll": true
+    }
+  ]
+}

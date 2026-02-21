@@ -1,0 +1,20 @@
+/* ChatMessage component styles are included in ChatInterface.css */
+/* This file is kept for organization and can hold component-specific overrides */
+
+.message-container {
+  display: flex;
+  width: 100%;
+}
+
+.message-bubble {
+  padding: 10px 15px;
+  border-radius: 12px;
+  word-wrap: break-word;
+  max-width: 60%;
+}
+
+@media (max-width: 480px) {
+  .message-bubble {
+    max-width: 75%;
+  }
+}
