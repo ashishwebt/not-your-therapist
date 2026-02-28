@@ -1,7 +1,7 @@
 """Pydantic schemas for request/response validation."""
 from pydantic import BaseModel
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional
 
 
 class MessageBase(BaseModel):
@@ -41,7 +41,7 @@ class ConversationResponse(ConversationBase):
     id: int
     created_at: datetime
     updated_at: datetime
-    messages: List[MessageResponse] = []
+    messages: list[MessageResponse] = []
 
     class Config:
         from_attributes = True

@@ -1,7 +1,8 @@
 """API routes."""
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from langchain_core.messages import HumanMessage, AIMessage
+from langchain.messages import HumanMessage, AIMessage
+from typing import Any
 
 from app.repository.database import get_db
 from app.repository import conversation as repo
@@ -44,7 +45,6 @@ def get_conversation(conversation_id: int, db: Session = Depends(get_db)):
 @router.post("/chat", response_model=ChatResponse)
 async def chat(req: ChatRequest, db: Session = Depends(get_db)):
     """Send message and get response."""
-    print("tt")
     if req.conversation_id is None:
         conv = repo.create(db, title="Conversation")
     else:
@@ -58,19 +58,22 @@ async def chat(req: ChatRequest, db: Session = Depends(get_db)):
     # Run through agent
     state = ConversationState(messages=[HumanMessage(content=req.message)], context_id=conv.thread_id)
     config = {"configurable": {"thread_id": conv.thread_id}}
-    result = await agent.ainvoke(state, config=config)
 
-    if len(result.messages) < 2:
-        raise HTTPException(status_code=500, detail="Failed to generate response")
-
-    assistant_msg = result.messages[-1]
-    if not isinstance(assistant_msg, AIMessage):
-        raise HTTPException(status_code=500, detail="Invalid response type")
-
+    accumulated_text = ""
+    async for token, metadata in agent.astream(
+        state,
+        config,
+        stream_mode="messages",
+    ):
+        if (isinstance(token, AIMessage) and
+            isinstance(token.content, str) and
+            token.content):
+                accumulated_text += token.content
+            
     return ChatResponse(
         conversation_id=conv.id,
         user_message=MessageResponse(id=0, role="user", content=req.message, created_at=None),
-        assistant_message=MessageResponse(id=0, role="assistant", content=assistant_msg.content, created_at=None),
+        assistant_message=MessageResponse(id=0, role="assistant", content=accumulated_text, created_at=None),
     )
 
 

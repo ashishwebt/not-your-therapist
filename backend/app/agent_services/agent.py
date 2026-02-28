@@ -3,10 +3,10 @@ from typing import Any, Callable, Awaitable
 from langchain.chat_models import init_chat_model
 from langchain.agents import AgentState, create_agent
 from langgraph.graph.state import CompiledStateGraph
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 import aiosqlite
-from langchain.messages import AIMessage, HumanMessage, get_text_from_content
+from langchain.messages import AIMessage, HumanMessage
 
 from pathlib import Path
 # Therapist system prompt
@@ -20,7 +20,7 @@ Keep responses concise but meaningful (2-3 sentences usually works best)."""
 class ConversationContext:
     context_id: str
     message_id: str
-    files: list[str] = []
+    files: list[str] = field(default_factory=list)
 
 
 
@@ -41,34 +41,6 @@ def _create_database_connection(db_path: str):
     """
     Path(db_path).parent.mkdir(parents=True, exist_ok=True)
     return aiosqlite.connect(db_path)
-
-async def iterate_agent_stream(
-    agent: CompiledStateGraph[Any, ConversationContext, Any, Any],
-    context_id: str,
-    message_id: str,
-    query: str,
-    on_message: Callable[[str], Awaitable[None]],
-) -> None:
-    """Iterate `agent.astream` and call `on_message(text)` for each AI message chunk."""
-    context = ConversationContext(context_id=context_id, message_id=message_id, files=files)
-    text_blocks = []
-
-    if len(text_blocks) > 0:
-        message = [HumanMessage(content=query, content_blocks=text_blocks)]
-    else:
-        message = [HumanMessage(content=query)]
-
-    accumulated_text = ""
-    async for token, metadata in agent.astream(
-        {"messages": message},
-        {"configurable": {"thread_id": context_id}},
-        context=context,
-        stream_mode="messages",
-    ):
-        if isinstance(token, AIMessage) and token.content:
-            text = get_text_from_content(token.content)
-            accumulated_text += text
-            await on_message(accumulated_text)
 
 def create_nt_agent(
     model_obj=None,

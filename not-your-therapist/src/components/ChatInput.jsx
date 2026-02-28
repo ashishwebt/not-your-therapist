@@ -28,7 +28,7 @@ function ChatInput({ onSendMessage, disabled = false }) {
           ref={inputRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyPress={handleKeyPress}
+          onKeyUp={handleKeyPress}
           placeholder="Share your thoughts here..."
           className="chat-input"
           rows="1"

@@ -6,10 +6,9 @@
       "type": "debugpy",
       "request": "launch",
       "python": "${command:python.interpreterPath}",
-      "module": "uv",
+      "module": "uvicorn",
       "args": [
-        "run",
-        "uvicorn",
+        
         "main:app",
         "--port",
         "8000",
