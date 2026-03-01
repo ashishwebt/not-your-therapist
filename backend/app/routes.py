@@ -6,10 +6,7 @@ from app.repository.database import get_db
 from app.repository import conversation as repo
 from app.agent_services.agent import (
     create_nt_agent,
-    ConversationState,
     get_agent_thread,
-    Message,
-    to_human_message,
     stream_chat,
 )
 from app.schemas import (
@@ -53,10 +50,8 @@ async def get_conversation(conversation_id: int, db: Session = Depends(get_db)):
         updated_at=conv.updated_at,
         messages=[
             MessageResponse(
-                id=i,
                 role=msg.role,
                 content=msg.content,
-                created_at=None,
             )
             for i, msg in enumerate(messages)
         ]
@@ -85,7 +80,7 @@ async def chat(req: ChatRequest, db: Session = Depends(get_db)):
                 conversation_id=conv.id,
                 assistant_message=MessageResponse(
                     id=0,
-                    role="assistant",
+                    role=msg.role,
                     content=msg.content,
                     created_at=None,
                 ),
@@ -95,10 +90,8 @@ async def chat(req: ChatRequest, db: Session = Depends(get_db)):
         final_payload = ChatResponse(
             conversation_id=conv.id,
             assistant_message=MessageResponse(
-                id=0,
                 role="assistant",
                 content=accumulated_text,
-                created_at=None,
             ),
         )
         yield SSEStream.done(final_payload)

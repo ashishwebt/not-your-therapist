@@ -17,11 +17,9 @@ class MessageCreate(BaseModel):
 
 class MessageResponse(BaseModel):
     """Schema for message response."""
-    id: int
     role: str
     content: str
-    created_at: Optional[datetime] = None
-
+    
     class Config:
         from_attributes = True
 
