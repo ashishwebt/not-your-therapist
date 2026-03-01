@@ -9,13 +9,7 @@ from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 import aiosqlite
 from langchain_core.runnables import RunnableConfig
 from pathlib import Path
-from pydantic import BaseModel
-
-
-class Message(BaseModel):
-    """Simple message DTO."""
-    role: str  # "user" or "assistant"
-    content: str
+from app.agent_services.base import Agent, Message
 
 
 
@@ -51,18 +45,43 @@ def to_human_message(msg: Message) -> HumanMessage:
     return HumanMessage(content=msg.content)
 
 
-async def stream_chat(agent: CompiledStateGraph, message: str, thread_id: str):
-    """Stream chat messages from agent, converting to Message DTO."""
-    state = ConversationState(
-        messages=[to_human_message(Message(role="user", content=message))],
-        context_id=thread_id
-    )
-    config = {"configurable": {"thread_id": thread_id}}
 
-    async for token, metadata in agent.astream(state, config, stream_mode="messages"):
-        if isinstance(token, AIMessage) and isinstance(token.content, str) and token.content:
-            yield Message(role="assistant", content=token.content)
 
+class LangChainAgent(Agent):
+    """LangChain agent implementation of the Agent interface."""
+
+    def __init__(self, agent: CompiledStateGraph):
+        self.agent = agent
+
+    async def stream_chat(self, message: str, thread_id: str):
+        """Stream chat messages from agent."""
+        state = ConversationState(
+            messages=[to_human_message(Message(role="user", content=message))],
+            context_id=thread_id
+        )
+        config = {"configurable": {"thread_id": thread_id}}
+
+        async for token, metadata in self.agent.astream(state, config, stream_mode="messages"):
+            if isinstance(token, AIMessage) and isinstance(token.content, str) and token.content:
+                yield Message(role="assistant", content=token.content)
+
+    async def get_thread(self, thread_id: str) -> list[Message]:
+        """Retrieve conversation thread messages."""
+        config = {"configurable": {"thread_id": thread_id}}
+
+        state = await self.agent.aget_state(config)
+        messages = state.values.get("messages", [])
+        
+        result = []
+        for msg in messages:
+            if isinstance(msg, AIMessage):
+                result.append(Message(role="assistant", content=msg.content))
+            elif isinstance(msg, HumanMessage):
+                result.append(Message(role="user", content=msg.content))
+        
+        return result
+
+    
 def create_nt_agent(
     model_obj=None,
     checkpointer=None,
@@ -70,7 +89,7 @@ def create_nt_agent(
     model: str = "qwen2.5-coder:1.5b",
     model_provider: str = "ollama",
     db_path: str = "./data/agent_checkpoints.db",
-) -> CompiledStateGraph[Any, ConversationContext, Any, Any]:
+) -> LangChainAgent:
     """Factory creating a configured LangChain agent.
 
     Args:
@@ -91,33 +110,11 @@ def create_nt_agent(
         conn = _create_database_connection(db_path)
         checkpointer = AsyncSqliteSaver(conn)
 
-    return create_agent(
+    langchain_agent =create_agent(
         model=model_obj,
         state_schema=ConversationState,
         checkpointer=checkpointer,
         context_schema=ConversationContext,
         system_prompt=system_prompt,
     )
-
-async def get_agent_thread(agent: CompiledStateGraph[Any, ConversationContext, Any, Any], 
-                     config: RunnableConfig) -> list[Message]:
-    """Retrieve the agent's conversation thread state.
-
-    Args:
-        agent: The LangGraph agent instance
-        config: The runnable config with thread_id
-
-    Returns:
-        The current state of the conversation thread
-    """
-    state = await agent.aget_state(config)
-    messages = state.values.get("messages", [])
-    
-    result = []
-    for msg in messages:
-        if isinstance(msg, AIMessage):
-            result.append(Message(role="assistant", content=msg.content))
-        elif isinstance(msg, HumanMessage):
-            result.append(Message(role="user", content=msg.content))
-    
-    return result
+    return LangChainAgent(langchain_agent)

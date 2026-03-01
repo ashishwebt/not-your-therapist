@@ -5,9 +5,8 @@ from sqlalchemy.orm import Session
 from app.repository.database import get_db
 from app.repository import conversation as repo
 from app.agent_services.agent import (
-    create_nt_agent,
-    get_agent_thread,
-    stream_chat,
+    create_nt_agent
+    
 )
 from app.schemas import (
     ConversationResponse,
@@ -40,8 +39,7 @@ async def get_conversation(conversation_id: int, db: Session = Depends(get_db)):
     if not conv:
         raise HTTPException(status_code=404, detail="Conversation not found")
     
-    config = {"configurable": {"thread_id": conv.thread_id}}
-    messages = await get_agent_thread(agent, config)
+    messages = await agent.get_thread(conv.thread_id)
 
     return ConversationResponse(
         id=conv.id,
@@ -74,7 +72,7 @@ async def chat(req: ChatRequest, db: Session = Depends(get_db)):
 
     async def stream_generator():
         accumulated_text = ""
-        async for msg in stream_chat(agent, req.message, conv.thread_id):
+        async for msg in agent.stream_chat(req.message, conv.thread_id):
             accumulated_text += msg.content
             payload = ChatResponse(
                 conversation_id=conv.id,
