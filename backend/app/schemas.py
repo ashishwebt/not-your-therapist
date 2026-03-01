@@ -68,8 +68,7 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     """Schema for chat response with both user and assistant messages."""
     conversation_id: int
-    user_message: MessageResponse
     assistant_message: MessageResponse
-
+    
     class Config:
         from_attributes = True

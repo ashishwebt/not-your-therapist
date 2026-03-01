@@ -1,20 +1,25 @@
 """API routes."""
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from langchain.messages import HumanMessage, AIMessage
-from typing import Any
 
 from app.repository.database import get_db
 from app.repository import conversation as repo
-from app.agent_services.agent import create_nt_agent, ConversationState
+from app.agent_services.agent import (
+    create_nt_agent,
+    ConversationState,
+    get_agent_thread,
+    Message,
+    to_human_message,
+    stream_chat,
+)
 from app.schemas import (
     ConversationResponse,
     ConversationListResponse,
     ChatRequest,
-    ChatResponse,
     MessageResponse,
+    ChatResponse
 )
-
+from app.sse_helper import SSEStream
 router = APIRouter()
 agent = create_nt_agent()
 
@@ -32,21 +37,38 @@ def list_conversations(db: Session = Depends(get_db)):
 
 
 @router.get("/conversations/{conversation_id}", response_model=ConversationResponse)
-def get_conversation(conversation_id: int, db: Session = Depends(get_db)):
+async def get_conversation(conversation_id: int, db: Session = Depends(get_db)):
     """Get conversation by ID."""
     conv = repo.get(db, conversation_id)
     if not conv:
         raise HTTPException(status_code=404, detail="Conversation not found")
+    
+    config = {"configurable": {"thread_id": conv.thread_id}}
+    messages = await get_agent_thread(agent, config)
+
     return ConversationResponse(
-        id=conv.id, title=conv.title, created_at=conv.created_at, updated_at=conv.updated_at, messages=[]
+        id=conv.id,
+        title=conv.title,
+        created_at=conv.created_at,
+        updated_at=conv.updated_at,
+        messages=[
+            MessageResponse(
+                id=i,
+                role=msg.role,
+                content=msg.content,
+                created_at=None,
+            )
+            for i, msg in enumerate(messages)
+        ]
     )
 
 
-@router.post("/chat", response_model=ChatResponse)
+
+@router.post("/chat")
 async def chat(req: ChatRequest, db: Session = Depends(get_db)):
-    """Send message and get response."""
+    """Send message and get streamed response."""
     if req.conversation_id is None:
-        conv = repo.create(db, title="Conversation")
+        conv = repo.create(db, title="New conversation")
     else:
         conv = repo.get(db, req.conversation_id)
         if not conv:
@@ -55,27 +77,33 @@ async def chat(req: ChatRequest, db: Session = Depends(get_db)):
     if not req.message.strip():
         raise HTTPException(status_code=400, detail="Message cannot be empty")
 
-    # Run through agent
-    state = ConversationState(messages=[HumanMessage(content=req.message)], context_id=conv.thread_id)
-    config = {"configurable": {"thread_id": conv.thread_id}}
+    async def stream_generator():
+        accumulated_text = ""
+        async for msg in stream_chat(agent, req.message, conv.thread_id):
+            accumulated_text += msg.content
+            payload = ChatResponse(
+                conversation_id=conv.id,
+                assistant_message=MessageResponse(
+                    id=0,
+                    role="assistant",
+                    content=msg.content,
+                    created_at=None,
+                ),
+            )
+            yield SSEStream.format(payload)
 
-    accumulated_text = ""
-    async for token, metadata in agent.astream(
-        state,
-        config,
-        stream_mode="messages",
-    ):
-        if (isinstance(token, AIMessage) and
-            isinstance(token.content, str) and
-            token.content):
-                accumulated_text += token.content
-            
-    return ChatResponse(
-        conversation_id=conv.id,
-        user_message=MessageResponse(id=0, role="user", content=req.message, created_at=None),
-        assistant_message=MessageResponse(id=0, role="assistant", content=accumulated_text, created_at=None),
-    )
+        final_payload = ChatResponse(
+            conversation_id=conv.id,
+            assistant_message=MessageResponse(
+                id=0,
+                role="assistant",
+                content=accumulated_text,
+                created_at=None,
+            ),
+        )
+        yield SSEStream.done(final_payload)
 
+    return SSEStream.response(stream_generator(), headers={"X-Conversation-Id": str(conv.id)})
 
 @router.delete("/conversations/{conversation_id}")
 def delete_conversation(conversation_id: int, db: Session = Depends(get_db)):

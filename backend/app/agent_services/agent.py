@@ -1,15 +1,24 @@
 """Agent for therapist conversation using LangGraph."""
-from typing import Any, Callable, Awaitable
+from typing import Any
 from langchain.chat_models import init_chat_model
 from langchain.agents import AgentState, create_agent
+from langchain.messages import HumanMessage, AIMessage
 from langgraph.graph.state import CompiledStateGraph
 from dataclasses import dataclass, field
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 import aiosqlite
-from langchain.messages import AIMessage, HumanMessage
-
+from langchain_core.runnables import RunnableConfig
 from pathlib import Path
-# Therapist system prompt
+from pydantic import BaseModel
+
+
+class Message(BaseModel):
+    """Simple message DTO."""
+    role: str  # "user" or "assistant"
+    content: str
+
+
+
 SYSTEM_PROMPT = """You are a supportive and empathetic virtual therapist.
 Your goal is to listen carefully, ask thoughtful questions, and provide emotional support.
 Be warm, non-judgmental, and help users explore their feelings and thoughts.
@@ -22,13 +31,8 @@ class ConversationContext:
     message_id: str
     files: list[str] = field(default_factory=list)
 
-
-
 class ConversationState(AgentState):
     files: list[str] = []
-
-
-
 
 def _create_database_connection(db_path: str):
     """Create a database connection for agent checkpoints.
@@ -41,6 +45,23 @@ def _create_database_connection(db_path: str):
     """
     Path(db_path).parent.mkdir(parents=True, exist_ok=True)
     return aiosqlite.connect(db_path)
+
+def to_human_message(msg: Message) -> HumanMessage:
+    """Convert Message DTO to LangChain HumanMessage."""
+    return HumanMessage(content=msg.content)
+
+
+async def stream_chat(agent: CompiledStateGraph, message: str, thread_id: str):
+    """Stream chat messages from agent, converting to Message DTO."""
+    state = ConversationState(
+        messages=[to_human_message(Message(role="user", content=message))],
+        context_id=thread_id
+    )
+    config = {"configurable": {"thread_id": thread_id}}
+
+    async for token, metadata in agent.astream(state, config, stream_mode="messages"):
+        if isinstance(token, AIMessage) and isinstance(token.content, str) and token.content:
+            yield Message(role="assistant", content=token.content)
 
 def create_nt_agent(
     model_obj=None,
@@ -78,3 +99,25 @@ def create_nt_agent(
         system_prompt=system_prompt,
     )
 
+async def get_agent_thread(agent: CompiledStateGraph[Any, ConversationContext, Any, Any], 
+                     config: RunnableConfig) -> list[Message]:
+    """Retrieve the agent's conversation thread state.
+
+    Args:
+        agent: The LangGraph agent instance
+        config: The runnable config with thread_id
+
+    Returns:
+        The current state of the conversation thread
+    """
+    state = await agent.aget_state(config)
+    messages = state.values.get("messages", [])
+    
+    result = []
+    for msg in messages:
+        if isinstance(msg, AIMessage):
+            result.append(Message(role="assistant", content=msg.content))
+        elif isinstance(msg, HumanMessage):
+            result.append(Message(role="user", content=msg.content))
+    
+    return result

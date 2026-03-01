@@ -38,27 +38,34 @@ function ChatInterface() {
     setIsTyping(true)
     setError(null)
 
+    const assistantTempId = `assistant-temp-${Date.now()}`
+    // add placeholder assistant message that we'll update as chunks arrive
+    setMessages(prev => [...prev, { id: assistantTempId, text: '', sender: 'therapist', timestamp: new Date() }])
+
+    let convIdSet = conversationId
     try {
-      const response = await sendMessage(text, conversationId)
+      await sendMessage(text, conversationId, ({ event, data }) => {
+        // data is expected to be the ChatResponse-like object
+        if (!data) return
+        // set conversation id from first chunk if present
+        if (!convIdSet && data.conversation_id) {
+          convIdSet = data.conversation_id
+          setConversationId(convIdSet)
+        }
 
-      // Update conversation ID on first message
-      if (!conversationId) {
-        setConversationId(response.conversation_id)
-      }
-
-      const therapistMessage = {
-        id: `assistant-${Date.now()}`,
-        text: response.assistant_message.content,
-        sender: 'therapist',
-        timestamp: new Date()
-      }
-
-      setMessages(prev => [...prev, therapistMessage])
+        if (event === 'message') {
+          const chunk = data.assistant_message?.content || ''
+          setMessages(prev => prev.map(m => m.id === assistantTempId ? { ...m, text: (m.text || '') + chunk } : m))
+        } else if (event === 'done') {
+          const finalText = typeof data === 'string' ? data : (data.assistant_message?.content || '')
+          setMessages(prev => prev.map(m => m.id === assistantTempId ? { ...m, text: finalText, timestamp: new Date() } : m))
+          setIsTyping(false)
+        }
+      })
     } catch (err) {
       setError(err.message || 'Failed to send message')
-      // Remove user message if error occurs
-      setMessages(prev => prev.filter(m => m.id !== userMessage.id))
-    } finally {
+      // remove user message and temp assistant message on error
+      setMessages(prev => prev.filter(m => m.id !== userMessage.id && m.id !== assistantTempId))
       setIsTyping(false)
     }
   }
