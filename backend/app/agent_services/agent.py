@@ -7,10 +7,9 @@ from langgraph.graph.state import CompiledStateGraph
 from dataclasses import dataclass, field
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 import aiosqlite
-from langchain_core.runnables import RunnableConfig
 from pathlib import Path
 from app.agent_services.base import Agent, Message
-
+from app.agent_services.skills_backend import SkillsRegistry, SkillMiddleware
 
 
 SYSTEM_PROMPT = """You are a supportive and empathetic virtual therapist.
@@ -64,6 +63,8 @@ class LangChainAgent(Agent):
         async for token, metadata in self.agent.astream(state, config, stream_mode="messages"):
             if isinstance(token, AIMessage) and isinstance(token.content, str) and token.content:
                 yield Message(role="assistant", content=token.content)
+            else:
+                pass
 
     async def get_thread(self, thread_id: str) -> list[Message]:
         """Retrieve conversation thread messages."""
@@ -110,11 +111,14 @@ def create_nt_agent(
         conn = _create_database_connection(db_path)
         checkpointer = AsyncSqliteSaver(conn)
 
+    skill_registry   = SkillsRegistry("./app/agent_services/skills")
+    skill_middleware = SkillMiddleware(skill_registry)
     langchain_agent =create_agent(
         model=model_obj,
         state_schema=ConversationState,
         checkpointer=checkpointer,
         context_schema=ConversationContext,
         system_prompt=system_prompt,
+        middleware=[skill_middleware]
     )
     return LangChainAgent(langchain_agent)

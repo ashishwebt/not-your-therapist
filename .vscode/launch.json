@@ -20,12 +20,10 @@
     },
     {
       "name": "React",
-      "type": "chrome",
+      "type": "node-terminal",
       "request": "launch",
-      "url": "http://localhost:5173",
-      "webRoot": "${workspaceFolder}/not-your-therapist/src",
-      "sourceMaps": true,
-      "preLaunchTask": "npm: dev (React)"
+      "command": "npm run dev",
+      "cwd": "${workspaceFolder}/not-your-therapist"
     }
   ],
   "compounds": [
