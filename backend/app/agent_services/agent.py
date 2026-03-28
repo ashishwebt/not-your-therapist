@@ -115,6 +115,6 @@ def create_nt_agent(
         checkpointer=checkpointer,
         context_schema=ConversationContext,
         system_prompt=system_prompt,
-        middleware=[skill_middleware]
+        middleware=[skill_middleware],
     )
     return LangChainAgent(langchain_agent)

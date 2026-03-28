@@ -42,7 +42,7 @@ from typing import Any
 import yaml
 from langchain.agents.middleware import AgentMiddleware, ModelRequest
 from langchain.messages import SystemMessage
-from langchain_core.tools import StructuredTool
+from langchain.tools import tool
 from pydantic import BaseModel
 
 # Accepted filenames for skill definitions, in lookup priority order.
@@ -226,8 +226,8 @@ class SkillsRegistry:
         return list(self._cache.keys())
 
 
-def make_load_skill_tool(registry: SkillsRegistry) -> StructuredTool:
-    """Build and return a LangChain ``StructuredTool`` that fetches skill instructions.
+def make_load_skill_tool(registry: SkillsRegistry) -> tool:
+    """Build and return a LangChain ``tool`` that fetches skill instructions.
 
     The returned tool is intended to be registered with a LangChain agent.
     When the model invokes it, it receives the full ``instructions`` text for
@@ -244,7 +244,7 @@ def make_load_skill_tool(registry: SkillsRegistry) -> StructuredTool:
             :meth:`SkillsRegistry.reload` calls are reflected immediately.
 
     Returns:
-        StructuredTool: A LangChain tool named ``"load_skill"`` that accepts a
+        tool: A LangChain tool named ``"load_skill"`` that accepts a
             single ``skill_name`` string argument.
 
     Tool contract:
@@ -264,7 +264,7 @@ def make_load_skill_tool(registry: SkillsRegistry) -> StructuredTool:
         # _Follow these instructions._
     """
 
-
+    @tool
     def load_skill(skill_name: str) -> str:
         """Retrieve and format the instructions for *skill_name*.
 
@@ -284,11 +284,7 @@ def make_load_skill_tool(registry: SkillsRegistry) -> StructuredTool:
             )
         return f"# {skill.name}\n\n{skill.instructions}\n\n---\n_Follow these instructions._"
 
-    return StructuredTool.from_function(
-        func=load_skill,
-        name="load_skill",
-        description="Load full instructions for a named skill. Call BEFORE attempting the task.",
-    )
+    return load_skill
 
 
 class SkillMiddleware(AgentMiddleware):
@@ -355,8 +351,13 @@ class SkillMiddleware(AgentMiddleware):
         block = self._skills_block()
         if not block:
             return request
-        new_blocks = list(request.system_message.content_blocks) + [
-            {"type": "text", "text": f"\n\n{block}"}
+        system_text = ""
+        if len(request.system_message.content_blocks) > 0:
+            system_text = request.system_message.content_blocks[0]["text"]
+            
+        
+        new_blocks =  [
+            {"type": "text", "text": f"{system_text}\n\n{block}"}
         ]
         return request.override(system_message=SystemMessage(content=new_blocks))
 
