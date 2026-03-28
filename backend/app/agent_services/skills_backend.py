@@ -43,7 +43,7 @@ import yaml
 from langchain.agents.middleware import AgentMiddleware, ModelRequest
 from langchain.messages import SystemMessage
 from langchain_core.tools import StructuredTool
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 # Accepted filenames for skill definitions, in lookup priority order.
 _MD_NAMES = ("SKILL.md", "skill.md")
@@ -264,10 +264,6 @@ def make_load_skill_tool(registry: SkillsRegistry) -> StructuredTool:
         # _Follow these instructions._
     """
 
-    class _Input(BaseModel):
-        """Input schema for the ``load_skill`` tool."""
-
-        skill_name: str = Field(..., description="Exact skill name from the system prompt.")
 
     def load_skill(skill_name: str) -> str:
         """Retrieve and format the instructions for *skill_name*.
@@ -291,7 +287,6 @@ def make_load_skill_tool(registry: SkillsRegistry) -> StructuredTool:
     return StructuredTool.from_function(
         func=load_skill,
         name="load_skill",
-        args_schema=_Input,
         description="Load full instructions for a named skill. Call BEFORE attempting the task.",
     )
 
@@ -332,7 +327,8 @@ class SkillMiddleware(AgentMiddleware):
     def __init__(self, registry: SkillsRegistry, header: str = "## Available Skills"):
         self.registry = registry
         self.header = header
-        self.tools = [make_load_skill_tool(registry)]
+        _load_skills = make_load_skill_tool(registry)
+        self.tools = [_load_skills]
 
     def _skills_block(self) -> str:
         """Render the skills catalogue as a Markdown string.
