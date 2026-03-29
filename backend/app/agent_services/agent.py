@@ -85,7 +85,7 @@ class LangChainAgent(Agent):
     
 def create_nt_agent(
     system_prompt: str = SYSTEM_PROMPT,
-    model: str = "qwen2.5-coder:1.5b",
+    model: str = "qwen2.5-coder:7b",
     model_provider: str = "ollama",
     db_path: str = "./data/agent_checkpoints.db",
 ) -> LangChainAgent:
@@ -102,7 +102,8 @@ def create_nt_agent(
     Returns:
         A compiled LangGraph agent
     """
-    model_obj = init_chat_model(model=model, model_provider=model_provider)
+    model_obj = init_chat_model(model=model, 
+                                model_provider=model_provider)
 
     conn = _create_database_connection(db_path)
     checkpointer = AsyncSqliteSaver(conn)
