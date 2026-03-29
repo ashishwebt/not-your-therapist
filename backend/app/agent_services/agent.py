@@ -85,7 +85,7 @@ class LangChainAgent(Agent):
     
 def create_nt_agent(
     system_prompt: str = SYSTEM_PROMPT,
-    model: str = "qwen2.5-coder:7b",
+    model: str = "qwen3.5:0.8b",
     model_provider: str = "ollama",
     db_path: str = "./data/agent_checkpoints.db",
 ) -> LangChainAgent:
