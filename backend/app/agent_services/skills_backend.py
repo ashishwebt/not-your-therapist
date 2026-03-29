@@ -42,8 +42,8 @@ from typing import Any
 import yaml
 from langchain.agents.middleware import AgentMiddleware, ModelRequest
 from langchain.messages import SystemMessage
-from langchain_core.tools import StructuredTool
-from pydantic import BaseModel, Field
+from langchain.tools import tool
+from pydantic import BaseModel
 
 # Accepted filenames for skill definitions, in lookup priority order.
 _MD_NAMES = ("SKILL.md", "skill.md")
@@ -225,11 +225,9 @@ class SkillsRegistry:
         """
         return list(self._cache.keys())
 
-class LoadSkillArgs(BaseModel):
-        skill_name: str = Field(..., description="Exact skill name from the system prompt.")
 
-def make_load_skill_tool(registry: SkillsRegistry) -> StructuredTool:
-    """Build and return a LangChain ``StructuredTool`` that fetches skill instructions.
+def make_load_skill_tool(registry: SkillsRegistry) -> tool:
+    """Build and return a LangChain ``tool`` that fetches skill instructions.
 
     The returned tool is intended to be registered with a LangChain agent.
     When the model invokes it, it receives the full ``instructions`` text for
@@ -246,7 +244,7 @@ def make_load_skill_tool(registry: SkillsRegistry) -> StructuredTool:
             :meth:`SkillsRegistry.reload` calls are reflected immediately.
 
     Returns:
-        StructuredTool: A LangChain tool named ``"load_skill"`` that accepts a
+        tool: A LangChain tool named ``"load_skill"`` that accepts a
             single ``skill_name`` string argument.
 
     Tool contract:
@@ -266,10 +264,8 @@ def make_load_skill_tool(registry: SkillsRegistry) -> StructuredTool:
         # _Follow these instructions._
     """
 
-
-
-    def load_skill(args: LoadSkillArgs) -> str:
-
+    @tool
+    def load_skill(skill_name: str) -> str:
         """Retrieve and format the instructions for *skill_name*.
 
         Args:
@@ -280,20 +276,15 @@ def make_load_skill_tool(registry: SkillsRegistry) -> StructuredTool:
             str: Formatted Markdown string containing the skill instructions,
                 or an error message if the skill was not found.
         """
-        skill = registry.get(args.skill_name)
+        skill = registry.get(skill_name)
         if not skill:
             return (
-                f"Skill '{args.skill_name}' not found. "
+                f"Skill '{skill_name}' not found. "
                 f"Available: {', '.join(registry.names()) or '(none)'}."
             )
         return f"# {skill.name}\n\n{skill.instructions}\n\n---\n_Follow these instructions._"
 
-    return StructuredTool.from_function(
-        func=load_skill,
-        name="load_skill",
-        args_schema=LoadSkillArgs,
-        description="Load full instructions for a named skill. Call BEFORE attempting the task.",
-    )
+    return load_skill
 
 
 class SkillMiddleware(AgentMiddleware):
