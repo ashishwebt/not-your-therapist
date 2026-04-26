@@ -19,7 +19,7 @@ class SSEStream:
     def response(cls, generator: AsyncGenerator, headers: dict = {}) -> StreamingResponse:
         return StreamingResponse(
             generator,
-            media_type="text/event-stream",
+            media_type="text/event-stream; charset=utf-8",
             headers={
                 "Cache-Control": "no-cache",
                 "X-Accel-Buffering": "no",

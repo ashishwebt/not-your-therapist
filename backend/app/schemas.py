@@ -1,7 +1,8 @@
 """Pydantic schemas for request/response validation."""
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from datetime import datetime
 from typing import Optional
+from pydantic import ConfigDict
 
 
 class MessageBase(BaseModel):
@@ -20,8 +21,7 @@ class MessageResponse(BaseModel):
     role: str
     content: str
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ConversationBase(BaseModel):
@@ -41,8 +41,7 @@ class ConversationResponse(ConversationBase):
     updated_at: datetime
     messages: list[MessageResponse] = []
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ConversationListResponse(BaseModel):
@@ -53,8 +52,7 @@ class ConversationListResponse(BaseModel):
     updated_at: datetime
     message_count: Optional[int] = 0
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ChatRequest(BaseModel):
@@ -62,11 +60,17 @@ class ChatRequest(BaseModel):
     conversation_id: Optional[int] = None
     message: str
 
+    @field_validator('message')
+    @classmethod
+    def message_not_empty(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError('Message cannot be empty')
+        return v.strip()
+
 
 class ChatResponse(BaseModel):
     """Schema for chat response with both user and assistant messages."""
     conversation_id: int
     assistant_message: MessageResponse
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
