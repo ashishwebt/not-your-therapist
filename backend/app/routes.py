@@ -6,7 +6,6 @@ from app.repository.database import get_db
 from app.repository import conversation as repo
 from app.agent_services.agent import (
     create_nt_agent
-    
 )
 from app.schemas import (
     ConversationResponse,
@@ -16,8 +15,17 @@ from app.schemas import (
     ChatResponse
 )
 from app.sse_helper import SSEStream
+
 router = APIRouter()
-agent = create_nt_agent()
+
+# Lazy-load agent to avoid event loop issues at import time
+_agent = None
+
+def get_agent():
+    global _agent
+    if _agent is None:
+        _agent = create_nt_agent()
+    return _agent
 
 
 @router.get("/conversations", response_model=list[ConversationListResponse])
@@ -39,7 +47,7 @@ async def get_conversation(conversation_id: int, db: Session = Depends(get_db)):
     if not conv:
         raise HTTPException(status_code=404, detail="Conversation not found")
     
-    messages = await agent.get_thread(conv.thread_id)
+    messages = await get_agent().get_thread(conv.thread_id)
 
     return ConversationResponse(
         id=conv.id,
@@ -72,7 +80,7 @@ async def chat(req: ChatRequest, db: Session = Depends(get_db)):
 
     async def stream_generator():
         accumulated_text = ""
-        async for msg in agent.stream_chat(req.message, conv.thread_id):
+        async for msg in get_agent().stream_chat(req.message, conv.thread_id):
             accumulated_text += msg.content
             payload = ChatResponse(
                 conversation_id=conv.id,

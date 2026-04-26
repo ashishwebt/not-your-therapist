@@ -37,9 +37,19 @@ def test_list_conversations(client, db_session):
     assert data[0]["title"] in ["Conv 1", "Conv 2"]
 
 
-def test_get_conversation(client, db_session):
+@patch("app.routes.get_agent")
+def test_get_conversation(mock_get_agent, client, db_session):
     """Test getting a specific conversation."""
     conv = repo.create(db_session, title="Test Conv")
+
+    class MockMsg:
+        def __init__(self, role, content):
+            self.role = role
+            self.content = content
+            
+    mock_agent = Mock()
+    mock_agent.get_thread = AsyncMock(return_value=[MockMsg("user", "Hello there!")])
+    mock_get_agent.return_value = mock_agent
 
     response = client.get(f"/conversations/{conv.id}")
 
@@ -49,7 +59,9 @@ def test_get_conversation(client, db_session):
     assert data["title"] == "Test Conv"
     assert "created_at" in data
     assert "updated_at" in data
-    assert data["messages"] == []
+    assert len(data["messages"]) == 1
+    assert data["messages"][0]["role"] == "user"
+    assert data["messages"][0]["content"] == "Hello there!"
 
 
 def test_get_conversation_not_found(client):
@@ -80,16 +92,21 @@ def test_delete_conversation_not_found(client):
     assert response.status_code == 404
 
 
-@patch("app.routes.agent")
-def test_chat_with_existing_conversation(mock_agent, client, db_session):
+@patch("app.routes.get_agent")
+def test_chat_with_existing_conversation(mock_get_agent, client, db_session):
     """Test sending a chat message to existing conversation."""
     conv = repo.create(db_session, title="Chat Conv")
 
-    # Mock the agent response
-    mock_agent.invoke.return_value.messages = [
-        HumanMessage(content="Hello"),
-        AIMessage(content="Hi there!")
-    ]
+    class MockMsg:
+        role = "assistant"
+        content = "Hi there!"
+        
+    async def mock_stream(*args, **kwargs):
+        yield MockMsg()
+
+    mock_agent = Mock()
+    mock_agent.stream_chat.return_value = mock_stream()
+    mock_get_agent.return_value = mock_agent
 
     response = client.post("/chat", json={
         "conversation_id": conv.id,
@@ -97,22 +114,23 @@ def test_chat_with_existing_conversation(mock_agent, client, db_session):
     })
 
     assert response.status_code == 200
-    data = response.json()
-    assert data["conversation_id"] == conv.id
-    assert data["user_message"]["content"] == "Hello"
-    assert data["assistant_message"]["content"] == "Hi there!"
-    assert data["user_message"]["role"] == "user"
-    assert data["assistant_message"]["role"] == "assistant"
+    assert "event: message" in response.text
+    assert "Hi there!" in response.text
 
 
-@patch("app.routes.agent")
-def test_chat_creates_conversation_if_null(mock_agent, client):
+@patch("app.routes.get_agent")
+def test_chat_creates_conversation_if_null(mock_get_agent, client):
     """Test that chat creates conversation if conversation_id is null."""
-    # Mock the agent response
-    mock_agent.invoke.return_value.messages = [
-        HumanMessage(content="Test message"),
-        AIMessage(content="Test response")
-    ]
+    class MockMsg:
+        role = "assistant"
+        content = "Test response"
+        
+    async def mock_stream(*args, **kwargs):
+        yield MockMsg()
+
+    mock_agent = Mock()
+    mock_agent.stream_chat.return_value = mock_stream()
+    mock_get_agent.return_value = mock_agent
 
     response = client.post("/chat", json={
         "conversation_id": None,
@@ -120,10 +138,8 @@ def test_chat_creates_conversation_if_null(mock_agent, client):
     })
 
     assert response.status_code == 200
-    data = response.json()
-    assert data["conversation_id"] is not None
-    assert data["user_message"]["content"] == "Test message"
-    assert data["assistant_message"]["content"] == "Test response"
+    assert "event: done" in response.text
+    assert "Test response" in response.text
 
 
 def test_chat_empty_message(client, db_session):
@@ -135,8 +151,7 @@ def test_chat_empty_message(client, db_session):
         "message": "   "
     })
 
-    assert response.status_code == 400
-    assert "empty" in response.json()["detail"].lower()
+    assert response.status_code == 422
 
 
 def test_chat_nonexistent_conversation(client):
@@ -148,38 +163,3 @@ def test_chat_nonexistent_conversation(client):
 
     assert response.status_code == 404
     assert "not found" in response.json()["detail"].lower()
-
-
-@patch("app.routes.agent")
-def test_chat_agent_returns_invalid_response(mock_agent, client, db_session):
-    """Test handling when agent returns less than 2 messages."""
-    conv = repo.create(db_session, title="Test")
-
-    mock_agent.invoke.return_value.messages = [HumanMessage(content="Hello")]
-
-    response = client.post("/chat", json={
-        "conversation_id": conv.id,
-        "message": "Hello"
-    })
-
-    assert response.status_code == 500
-    assert "generate response" in response.json()["detail"].lower()
-
-
-@patch("app.routes.agent")
-def test_chat_agent_returns_non_ai_message(mock_agent, client, db_session):
-    """Test handling when last message is not AI message."""
-    conv = repo.create(db_session, title="Test")
-
-    mock_agent.invoke.return_value.messages = [
-        HumanMessage(content="Hello"),
-        HumanMessage(content="Another message")
-    ]
-
-    response = client.post("/chat", json={
-        "conversation_id": conv.id,
-        "message": "Hello"
-    })
-
-    assert response.status_code == 500
-    assert "invalid response type" in response.json()["detail"].lower()

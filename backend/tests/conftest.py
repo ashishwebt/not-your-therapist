@@ -1,10 +1,11 @@
 """Test configuration and fixtures."""
 import pytest
 from sqlalchemy import create_engine
+from sqlalchemy.pool import StaticPool
 from sqlalchemy.orm import sessionmaker
 from fastapi.testclient import TestClient
 
-from app import app
+from main import app
 from app.repository.database import Base, get_db
 from app.repository import conversation as repo
 
@@ -17,7 +18,8 @@ def db_session():
 
     engine = create_engine(
         database_url,
-        connect_args={"check_same_thread": False}
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool
     )
     Base.metadata.create_all(bind=engine)
     SessionLocal = sessionmaker(bind=engine)

@@ -19,30 +19,27 @@ class TestMessageResponse:
     def test_valid_message(self):
         """Test creating a valid message response."""
         msg = MessageResponse(
-            id=1,
             role="user",
-            content="Hello",
-            created_at=datetime.now()
+            content="Hello"
         )
 
-        assert msg.id == 1
         assert msg.role == "user"
         assert msg.content == "Hello"
 
     def test_message_without_created_at(self):
         """Test message without created_at (optional field)."""
         msg = MessageResponse(
-            id=1,
             role="assistant",
             content="Hi there"
         )
 
-        assert msg.created_at is None
+        assert msg.role == "assistant"
+        assert msg.content == "Hi there"
 
     def test_invalid_message_missing_required_field(self):
         """Test validation fails with missing required field."""
         with pytest.raises(ValidationError) as exc_info:
-            MessageResponse(id=1, role="user")
+            MessageResponse(role="user")
 
         assert "content" in str(exc_info.value)
 
@@ -69,8 +66,8 @@ class TestConversationResponse:
         """Test conversation with multiple messages."""
         now = datetime.now()
         messages = [
-            MessageResponse(id=1, role="user", content="Hi"),
-            MessageResponse(id=2, role="assistant", content="Hello")
+            MessageResponse(role="user", content="Hi"),
+            MessageResponse(role="assistant", content="Hello")
         ]
         conv = ConversationResponse(
             id=1,
@@ -161,13 +158,14 @@ class TestChatRequest:
         assert "message" in str(exc_info.value)
 
     def test_empty_message_validation(self):
-        """Test that empty message is technically valid (route validates)."""
-        req = ChatRequest(
-            conversation_id=1,
-            message=""
-        )
-
-        assert req.message == ""
+        """Test that empty message raises validation error."""
+        with pytest.raises(ValidationError) as exc_info:
+            ChatRequest(
+                conversation_id=1,
+                message=""
+            )
+        
+        assert "message" in str(exc_info.value)
 
 
 class TestChatResponse:
@@ -177,11 +175,6 @@ class TestChatResponse:
         """Test creating a valid chat response."""
         resp = ChatResponse(
             conversation_id=1,
-            user_message=MessageResponse(
-                id=1,
-                role="user",
-                content="Hi"
-            ),
             assistant_message=MessageResponse(
                 id=2,
                 role="assistant",
@@ -190,7 +183,6 @@ class TestChatResponse:
         )
 
         assert resp.conversation_id == 1
-        assert resp.user_message.content == "Hi"
         assert resp.assistant_message.content == "Hello"
 
     def test_invalid_chat_response_missing_messages(self):
@@ -199,7 +191,7 @@ class TestChatResponse:
             ChatResponse(conversation_id=1)
 
         error_str = str(exc_info.value)
-        assert "user_message" in error_str or "assistant_message" in error_str
+        assert "assistant_message" in error_str
 
 
 class TestConversationCreate:
