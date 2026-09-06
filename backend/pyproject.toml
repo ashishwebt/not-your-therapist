@@ -3,13 +3,13 @@ name = "backend"
 version = "0.1.0"
 description = "FastAPI RESTful backend with Langchain, LangGraph, and Ollama integration for therapist chatbot"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.13"
 dependencies = [
     "fastapi>=0.104.0",
     "pydantic>=2.0.0",
     "pydantic-settings>=2.0.0",
     "python-dotenv>=1.0.0",
-    "sqlalchemy>=2.0.0",
+    "sqlalchemy>=2.0.52",
     "aiosqlite>=0.22.1",
     "httpx>=0.25.0",
     "langchain>=1.2.10",
