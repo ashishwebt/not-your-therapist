@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.repository.database import get_db
 from app.repository import conversation as repo
+from app.config import settings
 from app.agent_services.agent import (
     create_nt_agent
 )
@@ -25,7 +26,11 @@ _agent = None
 def get_agent():
     global _agent
     if _agent is None:
-        _agent = create_nt_agent()
+        _agent = create_nt_agent(
+            model=settings.MODEL,
+            model_provider=settings.MODEL_PROVIDER,
+            db_path=settings.DB_PATH,
+        )
     return _agent
 
 

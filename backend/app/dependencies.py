@@ -2,6 +2,7 @@
 from functools import lru_cache
 from app.agent_services.base import Agent
 from app.agent_services.agent import create_nt_agent
+from app.config import settings
 
 
 @lru_cache(maxsize=1)
@@ -15,4 +16,8 @@ def get_agent() -> Agent:
     Returns:
         An Agent implementation instance
     """
-    return create_nt_agent()
+    return create_nt_agent(
+        model=settings.MODEL,
+        model_provider=settings.MODEL_PROVIDER,
+        db_path=settings.DB_PATH,
+    )

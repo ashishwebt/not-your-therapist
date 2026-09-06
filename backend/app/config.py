@@ -25,9 +25,12 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     DATABASE_URL: str = Field(..., description="Database connection string")
     OLLAMA_BASE_URL: str = Field(..., description="Ollama server URL")
+    MODEL: str = Field(..., description="Primary LLM model name")
+    MODEL_PROVIDER: str = Field(..., description="LLM model provider")
+    DB_PATH: str = Field(..., description="Agent checkpoint SQLite path")
     CORS_ALLOWED_ORIGINS: list[str] = ["*"]
 
-    @field_validator("DATABASE_URL", "OLLAMA_BASE_URL")
+    @field_validator("DATABASE_URL", "OLLAMA_BASE_URL", "MODEL", "MODEL_PROVIDER", "DB_PATH")
     @classmethod
     def validate_required_env(cls, value: str | None) -> str:
         """Reject empty or missing environment values."""

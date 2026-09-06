@@ -85,19 +85,18 @@ class LangChainAgent(Agent):
     
 def create_nt_agent(
     system_prompt: str = SYSTEM_PROMPT,
-    model: str = "qwen3.5:0.8b",
-    model_provider: str = "ollama",
-    db_path: str = "./data/agent_checkpoints.db",
+    *,
+    model: str,
+    model_provider: str,
+    db_path: str,
 ) -> LangChainAgent:
     """Factory creating a configured LangChain agent.
 
     Args:
-        model_obj: Optional pre-configured chat model. If None, creates a new one.
-        checkpointer: Optional pre-configured checkpointer. If None, creates a new one.
         system_prompt: System prompt for the agent
-        model: Model name (used if model_obj is None)
-        model_provider: Model provider (used if model_obj is None)
-        db_path: Path to database file (used if checkpointer is None)
+        model: Model name from configuration
+        model_provider: Model provider from configuration
+        db_path: Path to database file from configuration
 
     Returns:
         A compiled LangGraph agent
