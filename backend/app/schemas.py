@@ -34,6 +34,18 @@ class ConversationCreate(ConversationBase):
     pass
 
 
+class ConversationUpdateRequest(BaseModel):
+    """Schema for updating a conversation title."""
+    title: str
+
+    @field_validator('title')
+    @classmethod
+    def title_not_empty(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError('Title cannot be empty')
+        return v.strip()
+
+
 class ConversationResponse(ConversationBase):
     """Schema for conversation response with messages."""
     id: int

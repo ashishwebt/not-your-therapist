@@ -92,6 +92,21 @@ def test_delete_conversation_not_found(client):
     assert response.status_code == 404
 
 
+def test_update_conversation_title(client, db_session):
+    """Test renaming a conversation."""
+    conv = repo.create(db_session, title="Old Title")
+
+    response = client.patch(f"/conversations/{conv.id}", json={
+        "title": "New Title"
+    })
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["id"] == conv.id
+    assert data["title"] == "New Title"
+    assert repo.get(db_session, conv.id).title == "New Title"
+
+
 @patch("app.routes.get_agent")
 def test_chat_with_existing_conversation(mock_get_agent, client, db_session):
     """Test sending a chat message to existing conversation."""

@@ -10,6 +10,7 @@ from app.agent_services.agent import (
 from app.schemas import (
     ConversationResponse,
     ConversationListResponse,
+    ConversationUpdateRequest,
     ChatRequest,
     MessageResponse,
     ChatResponse
@@ -103,6 +104,20 @@ async def chat(req: ChatRequest, db: Session = Depends(get_db)):
         yield SSEStream.done(final_payload)
 
     return SSEStream.response(stream_generator(), headers={"X-Conversation-Id": str(conv.id)})
+
+@router.patch("/conversations/{conversation_id}", response_model=ConversationListResponse)
+def update_conversation_title(conversation_id: int, req: ConversationUpdateRequest, db: Session = Depends(get_db)):
+    """Update a conversation title."""
+    conv = repo.update_title(db, conversation_id, req.title)
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    return ConversationListResponse(
+        id=conv.id,
+        title=conv.title,
+        created_at=conv.created_at,
+        updated_at=conv.updated_at,
+    )
+
 
 @router.delete("/conversations/{conversation_id}")
 def delete_conversation(conversation_id: int, db: Session = Depends(get_db)):

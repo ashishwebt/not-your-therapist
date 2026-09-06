@@ -101,6 +101,27 @@ export async function getConversation(conversationId) {
   return await response.json()
 }
 
+export async function renameConversation(conversationId, title) {
+  const response = await fetch(`${API_BASE_URL}/conversations/${conversationId}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ title }),
+  })
+
+  if (!response.ok) {
+    let errMsg = 'Failed to rename conversation'
+    try {
+      const error = await response.json()
+      errMsg = error.detail || errMsg
+    } catch (e) {}
+    throw new Error(errMsg)
+  }
+
+  return await response.json()
+}
+
 export async function deleteConversation(conversationId) {
   const response = await fetch(`${API_BASE_URL}/conversations/${conversationId}`, {
     method: 'DELETE',

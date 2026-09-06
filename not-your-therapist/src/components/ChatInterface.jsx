@@ -5,6 +5,7 @@ import {
   sendMessage,
   getConversations,
   getConversation,
+  renameConversation,
   deleteConversation
 } from '../services/api'
 import '../styles/ChatInterface.css'
@@ -20,6 +21,8 @@ function ChatInterface() {
   const [messages, setMessages] = useState([WELCOME_MESSAGE])
   const [conversations, setConversations] = useState([])
   const [selectedConversationId, setSelectedConversationId] = useState(null)
+  const [renamingConversationId, setRenamingConversationId] = useState(null)
+  const [draftConversationTitle, setDraftConversationTitle] = useState('')
   const [isTyping, setIsTyping] = useState(false)
   const [isLoadingHistory, setIsLoadingHistory] = useState(false)
   const [error, setError] = useState(null)
@@ -81,6 +84,21 @@ function ChatInterface() {
   const handleSelectConversation = async (conversationId) => {
     setSelectedConversationId(conversationId)
     await loadConversation(conversationId)
+  }
+
+  const handleRenameConversation = async (conversationId) => {
+    const nextTitle = draftConversationTitle.trim() || 'New Conversation'
+
+    try {
+      const updatedConversation = await renameConversation(conversationId, nextTitle)
+      setConversations(prev => prev.map(item => item.id === conversationId
+        ? { ...item, title: updatedConversation.title || nextTitle, updated_at: updatedConversation.updated_at }
+        : item))
+      setRenamingConversationId(null)
+      setDraftConversationTitle('')
+    } catch (err) {
+      setError(err.message || 'Failed to rename conversation')
+    }
   }
 
   const handleDeleteConversation = async (conversationId) => {
@@ -169,24 +187,64 @@ function ChatInterface() {
                 key={conversation.id}
                 className={`conversation-item ${selectedConversationId === conversation.id ? 'selected' : ''}`}
               >
-                <button
-                  className="conversation-link"
-                  type="button"
-                  onClick={() => handleSelectConversation(conversation.id)}
-                >
-                  <span className="conversation-title">{conversation.title || 'New conversation'}</span>
-                  <span className="conversation-meta">
-                    {new Date(conversation.updated_at).toLocaleDateString()}
-                  </span>
-                </button>
-                <button
-                  className="delete-button"
-                  type="button"
-                  onClick={() => handleDeleteConversation(conversation.id)}
-                  aria-label={`Delete conversation ${conversation.title || conversation.id}`}
-                >
-                  ×
-                </button>
+                {renamingConversationId === conversation.id ? (
+                  <div className="rename-controls">
+                    <input
+                      type="text"
+                      value={draftConversationTitle}
+                      onChange={(event) => setDraftConversationTitle(event.target.value)}
+                      className="rename-input"
+                      maxLength={80}
+                      autoFocus
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') handleRenameConversation(conversation.id)
+                        if (event.key === 'Escape') {
+                          setRenamingConversationId(null)
+                          setDraftConversationTitle('')
+                        }
+                      }}
+                    />
+                    <div className="rename-actions">
+                      <button type="button" className="rename-save" onClick={() => handleRenameConversation(conversation.id)}>Save</button>
+                      <button type="button" className="rename-cancel" onClick={() => {
+                        setRenamingConversationId(null)
+                        setDraftConversationTitle('')
+                      }}>Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <button
+                      className="conversation-link"
+                      type="button"
+                      onClick={() => handleSelectConversation(conversation.id)}
+                    >
+                      <span className="conversation-title">{conversation.title || 'New conversation'}</span>
+                      <span className="conversation-meta">
+                        {new Date(conversation.updated_at).toLocaleDateString()}
+                      </span>
+                    </button>
+                    <button
+                      className="rename-button"
+                      type="button"
+                      onClick={() => {
+                        setRenamingConversationId(conversation.id)
+                        setDraftConversationTitle(conversation.title || 'New conversation')
+                      }}
+                      aria-label={`Rename conversation ${conversation.title || conversation.id}`}
+                    >
+                      ✎
+                    </button>
+                    <button
+                      className="delete-button"
+                      type="button"
+                      onClick={() => handleDeleteConversation(conversation.id)}
+                      aria-label={`Delete conversation ${conversation.title || conversation.id}`}
+                    >
+                      ×
+                    </button>
+                  </>
+                )}
               </div>
             ))
           )}

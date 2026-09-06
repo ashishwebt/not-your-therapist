@@ -81,6 +81,62 @@
   padding: 0;
 }
 
+.rename-button,
+.delete-button {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.rename-controls {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rename-input {
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  color: white;
+  padding: 8px 10px;
+  box-sizing: border-box;
+}
+
+.rename-input::placeholder {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.rename-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.rename-save,
+.rename-cancel {
+  border: none;
+  border-radius: 6px;
+  padding: 6px 8px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.rename-save {
+  background: #667eea;
+  color: white;
+}
+
+.rename-cancel {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
 .conversation-title {
   font-size: 14px;
   font-weight: 600;

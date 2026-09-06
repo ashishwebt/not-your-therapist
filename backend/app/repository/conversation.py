@@ -37,6 +37,19 @@ def list_all(db: Session, skip: int = 0, limit: int = 100) -> list[Conversation]
     return db.query(Conversation).order_by(desc(Conversation.updated_at)).offset(skip).limit(limit).all()
 
 
+def update_title(db: Session, conversation_id: int, title: str) -> Conversation | None:
+    """Update a conversation title."""
+    conv = get(db, conversation_id)
+    if not conv:
+        return None
+
+    normalized_title = (title or '').strip()
+    conv.title = normalized_title or 'New Conversation'
+    db.commit()
+    db.refresh(conv)
+    return conv
+
+
 def delete(db: Session, conversation_id: int) -> bool:
     """Delete conversation."""
     conv = get(db, conversation_id)
