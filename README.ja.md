@@ -14,6 +14,8 @@ Not Your Therapist は、**React、FastAPI、LangChain、LangGraph、Ollama** �
 
 診断、治療、危機的状況への対応、または専門的なメンタルヘルスに関する判断のために使用しないでください。
 
+プライバシー注意: バックエンドをリモートの LLM プロバイダ（ホスト型 API やクラウドモデル）を使用するように設定した場合、リクエストや会話データはそのプロバイダに送信され、あなたのコンピュータ外に出る可能性があります。データをローカルに留めたい場合は、ローカルで動作する Ollama モデルなどを使用してください。
+
 緊急事態にある場合、または自分自身が差し迫った危険にさらされていると感じている場合は、地域の緊急サービスまたは資格を持つ専門家に連絡してください。
 
 ## Architecture
@@ -51,8 +53,8 @@ Not Your Therapist は、**React、FastAPI、LangChain、LangGraph、Ollama** �
 
 ## Technology
 
-* **フロントエンド:** React 19 + Vite
-* **バックエンド:** Python 3.11+ + FastAPI
+- **フロントエンド:** React 19 + Vite
+- **バックエンド:** Python 3.13+ + FastAPI
 * **AIオーケストレーション:** LangChain + LangGraph
 * **LLMランタイム:** Ollama
 * **永続化:** SQLite + SQLAlchemy / aiosqlite
@@ -86,10 +88,10 @@ not-your-therapist/
 
 ## Prerequisites
 
-* Python **3.11+**
-* Node.js と npm
-* Ollama
-* 使用するマシンに適した Ollama モデル
+- Python **3.13+**
+- Node.js と npm
+- Ollama（ローカルランタイム）
+- 使用するマシンに適した Ollama モデル（または設定済みのプロバイダ）
 
 ## Getting Started
 
@@ -114,28 +116,35 @@ ollama pull llama3.2
 
 ### 3. バックエンドを設定する
 
-```bash
-cd backend
-cp .env.example .env
-```
+`backend/` に `.env` ファイルを作成し、以下の環境変数を設定してください。バックエンドは次を必須とします。
 
-Windows PowerShell の場合:
+- `DATABASE_URL` — データベース接続文字列（例: `sqlite:///./chat.db`）
+- `OLLAMA_BASE_URL` — Ollama サーバーの URL（例: `http://localhost:11434`）
+- `MODEL` — 使用する LLM モデル名（例: `llama3.2`）
+- `MODEL_PROVIDER` — モデルプロバイダ識別子（例: `ollama`）
+- `DB_PATH` — LangGraph のチェックポイント用パス（例: `./checkpoints.db`）
+- `ENVIRONMENT` — `development` または `production`
 
-```powershell
-Copy-Item .env.example .env
-```
-
-付属の設定では、以下を使用します。
+例: `backend/.env`
 
 ```env
-OLLAMA_BASE_URL=http://localhost:11434
 DATABASE_URL=sqlite:///./chat.db
+OLLAMA_BASE_URL=http://localhost:11434
+MODEL=llama3.2
+MODEL_PROVIDER=ollama
+DB_PATH=./checkpoints.db
 ENVIRONMENT=development
+```
+
+Windows PowerShell では次のコマンドで作成できます:
+
+```powershell
+Set-Content -Path .env -Value "DATABASE_URL=sqlite:///./chat.db`nOLLAMA_BASE_URL=http://localhost:11434`nMODEL=llama3.2`nMODEL_PROVIDER=ollama`nDB_PATH=./checkpoints.db`nENVIRONMENT=development"
 ```
 
 ### 4. 依存関係をインストールする
 
-バックエンドには `uv.lock` が含まれているため、開発時には `uv` の使用を推奨します。
+バックエンドは `uv.lock` を提供しており、Python 3.13+ での利用を想定しています。依存関係は `uv` を使ってインストールしてください:
 
 ```bash
 uv sync

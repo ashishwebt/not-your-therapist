@@ -13,6 +13,8 @@ It is intended as a locally runnable conversational AI experiment, not a medical
 
 Do not use it for diagnosis, treatment, crisis support, or professional mental-health decisions. If you are experiencing an emergency or believe you may be in immediate danger, contact your local emergency service or a qualified professional.
 
+Privacy notice: if you configure the backend to use a non-local LLM provider (for example a hosted API or cloud model), requests and conversation data will be sent to that provider and may leave your computer. Use remote providers only if you understand and accept that your data may be transmitted to third-party servers.
+
 ## Architecture
 
 ```text
@@ -47,8 +49,8 @@ Do not use it for diagnosis, treatment, crisis support, or professional mental-h
 
 ## Technology
 
-* **Frontend:** React 19 + Vite
-* **Backend:** Python 3.11+ + FastAPI
+- **Frontend:** React 19 + Vite
+- **Backend:** Python 3.13+ + FastAPI
 * **AI orchestration:** LangChain + LangGraph
 * **LLM runtime:** Ollama
 * **Persistence:** SQLite + SQLAlchemy / aiosqlite
@@ -82,10 +84,10 @@ not-your-therapist/
 
 ## Prerequisites
 
-* Python **3.11+**
-* Node.js and npm
-* Ollama
-* An Ollama model suitable for your machine
+- Python **3.13+**
+- Node.js and npm
+- Ollama (local runtime)
+- An Ollama model suitable for your machine (or configured provider)
 
 ## Getting Started
 
@@ -110,28 +112,35 @@ Use the model configured by the application if it differs from this example.
 
 ### 3. Configure the backend
 
-```bash
-cd backend
-cp .env.example .env
-```
+Create a `.env` file in `backend/` with the required settings. The backend requires the following environment variables:
 
-On Windows PowerShell:
+- `DATABASE_URL` — database connection string (e.g. `sqlite:///./chat.db`)
+- `OLLAMA_BASE_URL` — Ollama server URL (e.g. `http://localhost:11434`)
+- `MODEL` — primary LLM model name (e.g. `llama3.2`)
+- `MODEL_PROVIDER` — model provider identifier (e.g. `ollama`)
+- `DB_PATH` — path used for LangGraph checkpointing (e.g. `./checkpoints.db`)
+- `ENVIRONMENT` — `development` or `production`
 
-```powershell
-Copy-Item .env.example .env
-```
-
-The supplied configuration uses:
+Example `backend/.env`:
 
 ```env
-OLLAMA_BASE_URL=http://localhost:11434
 DATABASE_URL=sqlite:///./chat.db
+OLLAMA_BASE_URL=http://localhost:11434
+MODEL=llama3.2
+MODEL_PROVIDER=ollama
+DB_PATH=./checkpoints.db
 ENVIRONMENT=development
+```
+
+On Windows PowerShell you can create the file with:
+
+```powershell
+Set-Content -Path .env -Value "DATABASE_URL=sqlite:///./chat.db`nOLLAMA_BASE_URL=http://localhost:11434`nMODEL=llama3.2`nMODEL_PROVIDER=ollama`nDB_PATH=./checkpoints.db`nENVIRONMENT=development"
 ```
 
 ### 4. Install dependencies
 
-The backend includes a `uv.lock`, so `uv` is the recommended development workflow:
+The backend provides a `uv.lock` and is tested with Python 3.13+. Use the `uv` workflow to install dependencies:
 
 ```bash
 uv sync
